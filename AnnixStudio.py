@@ -1,10 +1,13 @@
 import streamlit as st
 from groq import Groq
 import requests
+import time
+import json
 
 # Load API keys from Streamlit secrets
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-ELEVENLABS_API_KEY = st.secrets["ELEVENLABS_API_KEY"]
+GROQ_API_KEY = st.secrets["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"]
+ELEVENLABS_API_KEY = st.secrets["sk_89b70b545a444903b2b2f828ce6071aae0af0f23b5ccdb93"]
+JSON2VIDEO_API_KEY = st.secrets["uYsGUkQ6qgxF7gkuqvuRuSLxjlRhgmMycAy6teDZ"]
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -69,13 +72,34 @@ Voiceover: [exact words]
     )
     return response.choices[0].message.content
 
-def extract_voiceover(script):
+def extract_sections(script):
+    prompt = f"""Extract three things from this video script and return ONLY valid JSON:
+{{
+  "hook_text": "the overlay text for the hook section",
+  "main_text": "the overlay text for the main content section", 
+  "cta_text": "the overlay text for the call to action section",
+  "voiceover": "all spoken words combined clean and in order"
+}}
+
+Script:
+{script}"""
+
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": f"Extract ONLY the spoken voiceover words from this script. No directions, no headers. Just the clean spoken text:\n\n{script}"}]
+        max_tokens=800,
+        messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].message.content
+    try:
+        text = response.choices[0].message.content.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except:
+        return {
+            "hook_text": "Watch this",
+            "main_text": "Amazing content",
+            "cta_text": "Try free — link in bio",
+            "voiceover": "Check out Annix Studio for free."
+        }
 
 def generate_voiceover(text):
     url = "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM"
@@ -92,6 +116,135 @@ def generate_voiceover(text):
     response = requests.post(url, json=data, headers=headers)
     if response.status_code == 200:
         return response.content
+    return None
+
+def generate_video(hook_text, main_text, cta_text, platform):
+    # Set resolution based on platform
+    if platform in ["TikTok", "Instagram Reels", "YouTube Shorts"]:
+        width, height = 720, 1280  # vertical
+    else:
+        width, height = 1280, 720  # horizontal
+
+    movie = {
+        "resolution": f"{width}x{height}",
+        "quality": "high",
+        "scenes": [
+            {
+                "comment": "Hook scene",
+                "duration": 3,
+                "transition": {"style": "fade"},
+                "elements": [
+                    {
+                        "type": "text",
+                        "text": hook_text,
+                        "style": {
+                            "fontFamily": "Arial",
+                            "fontSize": 60,
+                            "color": "#FFFFFF",
+                            "fontWeight": "bold",
+                            "textAlign": "center",
+                            "textShadow": "2px 2px 8px rgba(0,0,0,0.8)"
+                        },
+                        "x": "center",
+                        "y": "center",
+                        "width": width - 60,
+                        "animations": [{"type": "fadeIn", "duration": 0.5}]
+                    },
+                    {
+                        "type": "rectangle",
+                        "x": 0, "y": 0,
+                        "width": width, "height": height,
+                        "style": {"backgroundColor": "#FF6B35"},
+                        "zIndex": -1
+                    }
+                ]
+            },
+            {
+                "comment": "Main content scene",
+                "duration": 5,
+                "transition": {"style": "slide-left"},
+                "elements": [
+                    {
+                        "type": "text",
+                        "text": main_text,
+                        "style": {
+                            "fontFamily": "Arial",
+                            "fontSize": 48,
+                            "color": "#FFFFFF",
+                            "fontWeight": "bold",
+                            "textAlign": "center",
+                            "textShadow": "2px 2px 8px rgba(0,0,0,0.8)"
+                        },
+                        "x": "center",
+                        "y": "center",
+                        "width": width - 60,
+                        "animations": [{"type": "slideInLeft", "duration": 0.5}]
+                    },
+                    {
+                        "type": "rectangle",
+                        "x": 0, "y": 0,
+                        "width": width, "height": height,
+                        "style": {"backgroundColor": "#1A1A2E"},
+                        "zIndex": -1
+                    }
+                ]
+            },
+            {
+                "comment": "CTA scene",
+                "duration": 3,
+                "transition": {"style": "fade"},
+                "elements": [
+                    {
+                        "type": "text",
+                        "text": cta_text,
+                        "style": {
+                            "fontFamily": "Arial",
+                            "fontSize": 52,
+                            "color": "#FF6B35",
+                            "fontWeight": "bold",
+                            "textAlign": "center",
+                            "textShadow": "2px 2px 8px rgba(0,0,0,0.8)"
+                        },
+                        "x": "center",
+                        "y": "center",
+                        "width": width - 60,
+                        "animations": [{"type": "zoomIn", "duration": 0.5}]
+                    },
+                    {
+                        "type": "rectangle",
+                        "x": 0, "y": 0,
+                        "width": width, "height": height,
+                        "style": {"backgroundColor": "#0a0a0a"},
+                        "zIndex": -1
+                    }
+                ]
+            }
+        ]
+    }
+
+    headers = {
+        "x-api-key": JSON2VIDEO_API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(
+        "https://api.json2video.com/v2/movies",
+        headers=headers,
+        json={"movie": movie}
+    )
+
+    if response.status_code == 200:
+        return response.json().get("project")
+    return None
+
+def check_video_status(project_id):
+    headers = {"x-api-key": JSON2VIDEO_API_KEY}
+    response = requests.get(
+        f"https://api.json2video.com/v2/movies?project={project_id}",
+        headers=headers
+    )
+    if response.status_code == 200:
+        return response.json()
     return None
 
 # PAGE CONFIG
@@ -128,7 +281,7 @@ st.markdown("""
     </div>
     <h1 style='font-size:3em; font-weight:900; color:white; margin:0 0 10px 0;'>Grandma's on TikTok.</h1>
     <p style='font-size:1.2em; color:#FF6B35; margin:0 0 6px 0;'>Turn any idea into a complete professional video.</p>
-    <p style='font-size:0.95em; color:#666; margin:0;'>Script. Voiceover. Any language. Any platform. No skills needed.</p>
+    <p style='font-size:0.95em; color:#666; margin:0;'>Script. Voiceover. Video. Any language. Any platform. Free forever.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -160,28 +313,35 @@ with col2:
     language = st.selectbox("Language", ["English", "Vietnamese", "French", "Spanish", "Mandarin"])
     duration = st.selectbox("Duration", ["15 seconds", "30 seconds", "60 seconds", "2 minutes", "5 minutes", "10 minutes"])
 
-include_voiceover = st.checkbox("Generate voiceover audio", value=True)
+st.markdown("---")
+st.markdown("### Production Options")
+col3, col4, col5 = st.columns(3)
+with col3: include_voiceover = st.checkbox("Generate voiceover audio", value=True)
+with col4: include_video = st.checkbox("Generate video clip", value=True)
+with col5: st.caption("Video powered by JSON2Video")
 
 st.markdown("---")
 
 if st.button("🎬 Create My Video", type="primary", use_container_width=True):
     if idea:
-        with st.spinner("Annix Studio is creating your script..."):
+        with st.spinner("Annix Studio is writing your script..."):
             script = generate_script(idea, platform, tone, language, duration, mode, creator_info)
 
         st.markdown("## 📝 Your Video Script")
         st.markdown(script)
 
-        col_a, col_b = st.columns(2)
+        col_a, col_b, col_c = st.columns(3)
         with col_a:
             st.download_button("📄 Download Script", data=script,
                 file_name="Annix_Studio_Script.txt", mime="text/plain", use_container_width=True)
+
+        sections = extract_sections(script)
 
         if include_voiceover:
             st.markdown("---")
             st.markdown("## 🎙️ Voiceover")
             with st.spinner("Recording voiceover..."):
-                voiceover_text = extract_voiceover(script)
+                voiceover_text = sections.get("voiceover", "")
                 st.markdown(f"*{voiceover_text}*")
                 audio = generate_voiceover(voiceover_text)
                 if audio:
@@ -190,10 +350,41 @@ if st.button("🎬 Create My Video", type="primary", use_container_width=True):
                         st.download_button("🎙️ Download Voiceover", data=audio,
                             file_name="Annix_Studio_Voiceover.mp3", mime="audio/mpeg", use_container_width=True)
 
+        if include_video:
+            st.markdown("---")
+            st.markdown("## 🎥 Video Generation")
+            with st.spinner("Generating your video... this takes about 30-60 seconds..."):
+                project_id = generate_video(
+                    sections.get("hook_text", "Watch this"),
+                    sections.get("main_text", "Amazing content"),
+                    sections.get("cta_text", "Try free — link in bio"),
+                    platform
+                )
+
+                if project_id:
+                    for i in range(24):
+                        time.sleep(5)
+                        status = check_video_status(project_id)
+                        if status:
+                            movie = status.get("movie", {})
+                            if movie.get("status") == "done":
+                                video_url = movie.get("url")
+                                if video_url:
+                                    st.success("Video ready!")
+                                    st.video(video_url)
+                                    with col_c:
+                                        st.markdown(f"[⬇️ Download Video]({video_url})")
+                                break
+                            elif movie.get("status") == "error":
+                                st.error("Video generation failed. Try again.")
+                                break
+                else:
+                    st.error("Could not start video generation. Check your JSON2Video API key.")
+
         st.markdown("---")
-        st.markdown("<div style='text-align:center; color:#444; font-size:0.85em;'>Annix Studio — Part of the Annix Platform | annix.ai</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; color:#444; font-size:0.85em;'>Annix Studio — Free forever. Part of the Annix Platform. | Built by Khang Nguyen</div>", unsafe_allow_html=True)
     else:
         st.warning("Tell Annix Studio what your video is about first.")
 
 st.markdown("---")
-st.markdown("<div style='text-align:center; color:#333; font-size:0.8em;'>© 2026 Annix Platform. Created by Khang Nguyen.</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#333; font-size:0.8em;'>© 2026 Annix Platform. Free for everyone. Forever.</div>", unsafe_allow_html=True)
