@@ -118,102 +118,78 @@ def generate_video(hook_text, main_text, cta_text, platform):
         width, height = 1280, 720
 
     movie = {
-        "comment": "Annix Studio generated video",
-        "resolution": resolution,
-        "quality": "high",
-        "scenes": [
-            {
-                "comment": "Hook",
-                "duration": 3,
-                "transition": {"style": "fade", "duration": 0.5},
-                "elements": [
-                    {
-                        "type": "rectangle",
-                        "x": 0, "y": 0,
-                        "width": "100%",
-                        "height": "100%",
-                        "style": {"backgroundColor": "#FF6B35"},
-                        "zIndex": 0
-                    },
-                    {
-                        "type": "text",
-                        "text": hook_text,
-                        "x": "center",
-                        "y": "center",
-                        "width": "80%",
-                        "style": {
-                            "fontFamily": "Montserrat",
-                            "fontSize": 72,
-                            "color": "#FFFFFF",
-                            "fontWeight": "700",
-                            "textAlign": "center"
-                        },
-                        "zIndex": 1
+    "comment": "Annix Studio generated video",
+    "resolution": resolution,
+    "quality": "high",
+    "scenes": [
+        {
+            "comment": "Hook",
+            "duration": 3,
+            "transition": {"style": "fade", "duration": 0.5},
+            "background-color": "#FF6B35",
+            "elements": [
+                {
+                    "type": "text",
+                    "text": hook_text,
+                    "x": "center",
+                    "y": "center",
+                    "width": "80%",
+                    "style": {
+                        "fontFamily": "Montserrat",
+                        "fontSize": 72,
+                        "color": "#FFFFFF",
+                        "fontWeight": "700",
+                        "textAlign": "center"
                     }
-                ]
-            },
-            {
-                "comment": "Main",
-                "duration": 5,
-                "transition": {"style": "slide-left", "duration": 0.5},
-                "elements": [
-                    {
-                        "type": "rectangle",
-                        "x": 0, "y": 0,
-                        "width": "100%",
-                        "height": "100%",
-                        "style": {"backgroundColor": "#1A1A2E"},
-                        "zIndex": 0
-                    },
-                    {
-                        "type": "text",
-                        "text": main_text,
-                        "x": "center",
-                        "y": "center",
-                        "width": "80%",
-                        "style": {
-                            "fontFamily": "Montserrat",
-                            "fontSize": 60,
-                            "color": "#FFFFFF",
-                            "fontWeight": "700",
-                            "textAlign": "center"
-                        },
-                        "zIndex": 1
+                }
+            ]
+        },
+        {
+            "comment": "Main",
+            "duration": 5,
+            "transition": {"style": "slide-left", "duration": 0.5},
+            "background-color": "#1A1A2E",
+            "elements": [
+                {
+                    "type": "text",
+                    "text": main_text,
+                    "x": "center",
+                    "y": "center",
+                    "width": "80%",
+                    "style": {
+                        "fontFamily": "Montserrat",
+                        "fontSize": 60,
+                        "color": "#FFFFFF",
+                        "fontWeight": "700",
+                        "textAlign": "center"
                     }
-                ]
-            },
-            {
-                "comment": "CTA",
-                "duration": 3,
-                "transition": {"style": "fade", "duration": 0.5},
-                "elements": [
-                    {
-                        "type": "rectangle",
-                        "x": 0, "y": 0,
-                        "width": "100%",
-                        "height": "100%",
-                        "style": {"backgroundColor": "#0a0a0a"},
-                        "zIndex": 0
-                    },
-                    {
-                        "type": "text",
-                        "text": cta_text,
-                        "x": "center",
-                        "y": "center",
-                        "width": "80%",
-                        "style": {
-                            "fontFamily": "Montserrat",
-                            "fontSize": 64,
-                            "color": "#FF6B35",
-                            "fontWeight": "700",
-                            "textAlign": "center"
-                        },
-                        "zIndex": 1
+                }
+            ]
+        },
+        {
+            "comment": "CTA",
+            "duration": 3,
+            "transition": {"style": "fade", "duration": 0.5},
+            "background-color": "#0a0a0a",
+            "elements": [
+                {
+                    "type": "text",
+                    "text": cta_text,
+                    "x": "center",
+                    "y": "center",
+                    "width": "80%",
+                    "style": {
+                        "fontFamily": "Montserrat",
+                        "fontSize": 64,
+                        "color": "#FF6B35",
+                        "fontWeight": "700",
+                        "textAlign": "center"
                     }
-                ]
-            }
-        ]
-    }
+                }
+            ]
+        }
+    ]
+}
 
     headers = {
         "x-api-key": JSON2VIDEO_API_KEY,
