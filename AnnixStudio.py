@@ -112,84 +112,76 @@ def generate_voiceover(text):
 def generate_video(hook_text, main_text, cta_text, platform):
     if platform in ["TikTok", "Instagram Reels", "YouTube Shorts"]:
         resolution = "portrait-hd"
-        width, height = 720, 1280
     else:
         resolution = "full-hd"
-        width, height = 1280, 720
 
     movie = {
-    "comment": "Annix Studio generated video",
-    "resolution": resolution,
-    "quality": "high",
-    "scenes": [
-        {
-            "comment": "Hook",
-            "duration": 3,
-            "transition": {"style": "fade", "duration": 0.5},
-            "background-color": "#FF6B35",
-            "elements": [
-                {
-                    "type": "text",
-                    "text": hook_text,
-                    "x": "center",
-                    "y": "center",
-                    "width": "80%",
-                    "style": {
-                        "fontFamily": "Montserrat",
-                        "fontSize": 72,
-                        "color": "#FFFFFF",
-                        "fontWeight": "700",
-                        "textAlign": "center"
+        "comment": "Annix Studio generated video",
+        "resolution": resolution,
+        "quality": "high",
+        "scenes": [
+            {
+                "comment": "Hook",
+                "duration": 3,
+                "background-color": "#FF6B35",
+                "elements": [
+                    {
+                        "type": "text",
+                        "style": "005",
+                        "text": hook_text,
+                        "duration": 3,
+                        "settings": {
+                            "color": "#FFFFFF",
+                            "font-size": "72px",
+                            "font-family": "Montserrat",
+                            "font-weight": "900",
+                            "text-align": "center"
+                        }
                     }
-                }
-            ]
-        },
-        {
-            "comment": "Main",
-            "duration": 5,
-            "transition": {"style": "slide-left", "duration": 0.5},
-            "background-color": "#1A1A2E",
-            "elements": [
-                {
-                    "type": "text",
-                    "text": main_text,
-                    "x": "center",
-                    "y": "center",
-                    "width": "80%",
-                    "style": {
-                        "fontFamily": "Montserrat",
-                        "fontSize": 60,
-                        "color": "#FFFFFF",
-                        "fontWeight": "700",
-                        "textAlign": "center"
+                ]
+            },
+            {
+                "comment": "Main",
+                "duration": 5,
+                "background-color": "#1A1A2E",
+                "elements": [
+                    {
+                        "type": "text",
+                        "style": "003",
+                        "text": main_text,
+                        "duration": 5,
+                        "settings": {
+                            "color": "#FFFFFF",
+                            "font-size": "60px",
+                            "font-family": "Montserrat",
+                            "font-weight": "700",
+                            "text-align": "center"
+                        }
                     }
-                }
-            ]
-        },
-        {
-            "comment": "CTA",
-            "duration": 3,
-            "transition": {"style": "fade", "duration": 0.5},
-            "background-color": "#0a0a0a",
-            "elements": [
-                {
-                    "type": "text",
-                    "text": cta_text,
-                    "x": "center",
-                    "y": "center",
-                    "width": "80%",
-                    "style": {
-                        "fontFamily": "Montserrat",
-                        "fontSize": 64,
-                        "color": "#FF6B35",
-                        "fontWeight": "700",
-                        "textAlign": "center"
+                ]
+            },
+            {
+                "comment": "CTA",
+                "duration": 3,
+                "background-color": "#0a0a0a",
+                "elements": [
+                    {
+                        "type": "text",
+                        "style": "001",
+                        "text": cta_text,
+                        "duration": 3,
+                        "settings": {
+                            "color": "#FF6B35",
+                            "font-size": "64px",
+                            "font-family": "Montserrat",
+                            "font-weight": "900",
+                            "text-align": "center"
+                        }
                     }
-                }
-            ]
-        }
-    ]
-}
+                ]
+            }
+        ]
+    }
 
     headers = {
         "x-api-key": JSON2VIDEO_API_KEY,
@@ -217,7 +209,6 @@ def check_video_status(project_id):
         return response.json()
     return None
 
-# UI
 st.set_page_config(page_title="Annix Studio", page_icon="🎬", layout="wide")
 
 st.markdown("""
