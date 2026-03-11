@@ -5,9 +5,9 @@ import time
 import json
 
 # Load API keys from Streamlit secrets
-GROQ_API_KEY = st.secrets["xai-X08vtN2WVEYBLPkYCdQC8yNt5GFs7lZdwEZCnyRPAeXXF1ABNZ5uRh6sjUbjfsng84qn5nGd8Y3wBHKG"]
-ELEVENLABS_API_KEY = st.secrets["sk_89b70b545a444903b2b2f828ce6071aae0af0f23b5ccdb93"]
-JSON2VIDEO_API_KEY = st.secrets["uYsGUkQ6qgxF7gkuqvuRuSLxjlRhgmMycAy6teDZ"]
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+ELEVENLABS_API_KEY = st.secrets["ELEVENLABS_API_KEY"]
+JSON2VIDEO_API_KEY = st.secrets["JSON2VIDEO_API_KEY"]
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
