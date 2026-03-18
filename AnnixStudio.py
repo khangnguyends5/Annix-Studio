@@ -226,14 +226,11 @@ def generate_video_unified(sections, platform, voiceover_text):
                         "volume": 0
                     },
                     {
-                        "type": "voice",
-                        "text": voiceover_text,
-                        "connection": ELEVENLABS_CONN_ID,
-                        "voice": "21m00Tcm4TlvDq8ikWAM",
-                        "duration": -1,
-                        "settings": {
-                            "stability": 0.5,
-                            "similarity_boost": 0.75
+                       "type": "voice",
+    "model": "azure",
+    "text": voiceover_text,
+    "voice": "en-US-JennyMultilingualNeural",
+    "duration": -1
                         }
                     },
                     {
