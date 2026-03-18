@@ -6,10 +6,8 @@ import json
 import random
 
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-ELEVENLABS_API_KEY = st.secrets["ELEVENLABS_API_KEY"]
 JSON2VIDEO_API_KEY = st.secrets["JSON2VIDEO_API_KEY"]
 PEXELS_API_KEY = st.secrets["PEXELS_API_KEY"]
-ELEVENLABS_CONN_ID = st.secrets["JSON2VIDEO_ELEVENLABS_CONN_ID"]
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -158,13 +156,22 @@ Return complete rewritten script in same format."""
     )
     return response.choices[0].message.content
 
-def generate_video_unified(sections, platform, voiceover_text):
+def generate_video_unified(sections, platform, voiceover_text, language):
     if platform in ["TikTok", "Instagram Reels", "YouTube Shorts"]:
         resolution = "portrait-hd"
         orientation = "portrait"
     else:
         resolution = "full-hd"
         orientation = "landscape"
+
+    azure_voices = {
+        "English": "en-US-JennyMultilingualNeural",
+        "Vietnamese": "vi-VN-HoaiMyNeural",
+        "French": "fr-FR-DeniseNeural",
+        "Spanish": "es-ES-ElviraNeural",
+        "Mandarin": "zh-CN-XiaoxiaoNeural"
+    }
+    azure_voice = azure_voices.get(language, "en-US-JennyMultilingualNeural")
 
     fallback = "https://videos.pexels.com/video-files/4459031/4459031-hd_720_1280_30fps.mp4"
     hook_video = get_pexels_video(sections.get("hook_search", "cinematic nature"), orientation) or fallback
@@ -226,12 +233,11 @@ def generate_video_unified(sections, platform, voiceover_text):
                         "volume": 0
                     },
                     {
-                       "type": "voice",
-    "model": "azure",
-    "text": voiceover_text,
-    "voice": "en-US-JennyMultilingualNeural",
-    "duration": -1
-                        }
+                        "type": "voice",
+                        "model": "azure",
+                        "text": voiceover_text,
+                        "voice": azure_voice,
+                        "duration": -1
                     },
                     {
                         "type": "text",
@@ -433,10 +439,9 @@ with col2:
     duration = st.selectbox("Duration", ["15 seconds", "30 seconds", "60 seconds", "2 minutes", "5 minutes"])
 
 st.markdown("---")
-col3, col4, col5 = st.columns(3)
-with col3: include_video = st.checkbox("Generate video with real footage", value=True)
+col3, col4 = st.columns(2)
+with col3: include_video = st.checkbox("Generate video with real footage + voice", value=True)
 with col4: include_caption = st.checkbox("Generate viral caption", value=True)
-with col5: st.caption("🎥 Pexels + ElevenLabs + JSON2Video")
 
 st.markdown("---")
 
@@ -466,10 +471,10 @@ if st.button("🎬 Create My Viral Video", type="primary", use_container_width=T
         if include_video:
             st.markdown("---")
             st.markdown("## 🎥 Generating Your Video")
-            st.caption("Real footage + voice + subtitles + watermark — all in one")
+            st.caption("Real footage + Azure voice + subtitles + watermark")
 
             with st.spinner("Fetching footage and generating video... 60-90 seconds..."):
-                project_id = generate_video_unified(sections, platform, voiceover_text)
+                project_id = generate_video_unified(sections, platform, voiceover_text, language)
 
                 if project_id:
                     progress = st.progress(0)
@@ -499,7 +504,7 @@ if st.button("🎬 Create My Viral Video", type="primary", use_container_width=T
                     st.error("Could not start video. Check your API keys in Streamlit secrets.")
 
         st.markdown("---")
-        if st.button("🔁 Remix This Video — Make It More Viral", use_container_width=True):
+        if st.button("🔁 Remix — Make It More Viral", use_container_width=True):
             with st.spinner("Remixing for maximum virality..."):
                 remixed = remix_script(script)
                 st.markdown("## 🔁 Remixed Script")
