@@ -3,12 +3,45 @@ from groq import Groq
 import requests
 import time
 import json
+import random
 
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 ELEVENLABS_API_KEY = st.secrets["ELEVENLABS_API_KEY"]
 JSON2VIDEO_API_KEY = st.secrets["JSON2VIDEO_API_KEY"]
+PEXELS_API_KEY = st.secrets["PEXELS_API_KEY"]
+ELEVENLABS_CONN_ID = st.secrets["JSON2VIDEO_ELEVENLABS_CONN_ID"]
 
 groq_client = Groq(api_key=GROQ_API_KEY)
+
+TRENDING_TOPICS = [
+    "AI tools that will change your life in 2026",
+    "5 side hustles you can start with zero money",
+    "Morning routine that made me productive",
+    "Things nobody tells you about starting a business",
+    "How I learned a new skill in 7 days",
+    "Vietnamese grandma cooking secrets revealed",
+    "Why most people never achieve their goals",
+    "Simple habits that compound over time",
+    "How to make money while you sleep",
+    "The truth about building wealth young"
+]
+
+def get_trending_ideas():
+    return random.sample(TRENDING_TOPICS, 5)
+
+def get_pexels_video(query, orientation="portrait"):
+    headers = {"Authorization": PEXELS_API_KEY}
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page=5&orientation={orientation}&size=medium"
+    try:
+        response = requests.get(url, headers=headers, timeout=10).json()
+        if response.get("videos"):
+            for video in response["videos"]:
+                for vf in video["video_files"]:
+                    if vf.get("width", 0) >= 720:
+                        return vf["link"]
+        return None
+    except:
+        return None
 
 def generate_script(idea, platform, tone, language, duration, mode, creator_info):
     language_instruction = {
@@ -19,44 +52,47 @@ def generate_script(idea, platform, tone, language, duration, mode, creator_info
         "Mandarin": "用普通话写"
     }.get(language, "Write in English")
 
-    depth = "Simple, fun, and fast. Anyone can follow this." if mode == "Quick" else """Professional level:
+    depth = "Simple, fun, fast. First-time creator friendly." if mode == "Quick" else """Professional:
 - Exact camera angles
-- Text overlay suggestions
+- Text overlay suggestions  
 - Music recommendation
 - 3 alternative hooks
 - Platform engagement tips"""
 
     creator_context = f"\nCreator: {creator_info}" if creator_info else ""
 
-    prompt = f"""You are Annix Studio — creative AI video director.
+    prompt = f"""You are Annix Studio — world's best AI video director.
 {language_instruction}
 {depth}
 {creator_context}
 
-Create complete video script:
+Create complete viral video script:
 - Idea: {idea}
 - Platform: {platform}
 - Tone: {tone}
 - Duration: {duration}
 
 Structure:
-🎣 HOOK (3 seconds)
+🎣 HOOK (3 seconds — stop the scroll)
 Visual: [what appears]
-Text on screen: [overlay]
+Text on screen: [overlay - max 6 words]
 Voiceover: [exact words]
+Pexels search: [2-3 word search query for background video]
 
 🎬 MAIN CONTENT
 Visual: [what appears]
-Text on screen: [overlay]
+Text on screen: [overlay - max 8 words]
 Voiceover: [exact words]
+Pexels search: [2-3 word search query]
 
 📣 CALL TO ACTION
 Visual: [what appears]
-Text on screen: [overlay]
+Text on screen: [overlay - max 6 words]
 Voiceover: [exact words]
+Pexels search: [2-3 word search query]
 
-🎵 MUSIC: [genre, tempo]
-💡 PRO TIP: [one platform tip]"""
+🎵 MUSIC: [genre, tempo, mood]
+💡 PRO TIP: [one platform-specific tip]"""
 
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -66,18 +102,22 @@ Voiceover: [exact words]
     return response.choices[0].message.content
 
 def extract_sections(script):
-    prompt = f"""Extract from this script and return ONLY valid JSON no markdown:
+    prompt = f"""Extract from this script. Return ONLY valid JSON no markdown:
 {{
-  "hook_text": "hook overlay text max 8 words",
-  "main_text": "main content overlay text max 10 words",
-  "cta_text": "call to action text max 8 words",
-  "voiceover": "all spoken words clean and in order"
+  "hook_text": "hook overlay max 6 words",
+  "main_text": "main overlay max 8 words",
+  "cta_text": "cta overlay max 6 words",
+  "hook_search": "2-3 word pexels search for hook",
+  "main_search": "2-3 word pexels search for main",
+  "cta_search": "2-3 word pexels search for cta",
+  "voiceover": "all spoken words clean in order",
+  "topic_keywords": "2-3 keywords describing the topic"
 }}
 Script: {script}"""
 
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        max_tokens=500,
+        max_tokens=600,
         messages=[{"role": "user", "content": prompt}]
     )
     try:
@@ -87,76 +127,170 @@ Script: {script}"""
     except:
         return {
             "hook_text": "Watch this",
-            "main_text": "Amazing content inside",
+            "main_text": "This will change everything",
             "cta_text": "Try free link in bio",
-            "voiceover": "Check out Annix Studio for free."
+            "hook_search": "cinematic abstract",
+            "main_search": "people working success",
+            "cta_search": "phone social media",
+            "voiceover": "Check out Annix Studio for free.",
+            "topic_keywords": "viral content creator"
         }
 
-def generate_voiceover(text):
-    url = "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM"
-    headers = {
-        "Accept": "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": ELEVENLABS_API_KEY
-    }
-    data = {
-        "text": text[:2500],
-        "model_id": "eleven_multilingual_v2",
-        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
-    }
-    response = requests.post(url, json=data, headers=headers)
-    if response.status_code == 200:
-        return response.content
-    return None
+def generate_caption(topic, platform):
+    prompt = f"""Create a viral {platform} caption for a video about: {topic}
 
-def generate_video(hook_text, main_text, cta_text, platform):
+Include:
+- Strong hook first line
+- 2-3 sentences of value
+- Call to action
+- 8-10 relevant hashtags including #AnnixStudio #FreeAI
+
+Return only the caption text. Make it viral and engaging."""
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
+def remix_script(original_script):
+    prompt = f"""Rewrite this video script to be MORE viral, more emotional, more engaging, more shareable.
+Keep the same topic but make the hook impossible to skip, the content more compelling, and the CTA more urgent.
+
+Original:
+{original_script}
+
+Return the complete rewritten script in the same format."""
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        max_tokens=2500,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
+def generate_video_unified(sections, platform, voiceover_text):
     if platform in ["TikTok", "Instagram Reels", "YouTube Shorts"]:
         resolution = "portrait-hd"
+        orientation = "portrait"
     else:
         resolution = "full-hd"
+        orientation = "landscape"
+
+    hook_video = get_pexels_video(sections.get("hook_search", "cinematic nature"), orientation)
+    main_video = get_pexels_video(sections.get("main_search", "people success"), orientation)
+    cta_video = get_pexels_video(sections.get("cta_search", "phone technology"), orientation)
+
+    fallback = "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4"
+    hook_video = hook_video or fallback
+    main_video = main_video or fallback
+    cta_video = cta_video or fallback
 
     movie = {
-        "comment": "Annix Studio generated video",
+        "comment": "Annix Studio — Free AI Video",
         "resolution": resolution,
         "quality": "high",
         "scenes": [
             {
                 "comment": "Hook",
                 "duration": 3,
-                "background-color": "#FF6B35",
                 "elements": [
+                    {
+                        "type": "video",
+                        "src": hook_video,
+                        "duration": 3,
+                        "volume": 0
+                    },
                     {
                         "type": "text",
                         "style": "005",
-                        "text": hook_text,
+                        "text": sections.get("hook_text", "Watch This"),
                         "duration": 3,
                         "settings": {
                             "color": "#FFFFFF",
                             "font-size": "72px",
                             "font-family": "Montserrat",
                             "font-weight": "900",
-                            "text-align": "center"
+                            "text-align": "center",
+                            "text-shadow": "2px 2px 8px rgba(0,0,0,0.8)"
                         }
+                    },
+                    {
+                        "type": "text",
+                        "style": "001",
+                        "text": "Made with Annix Studio",
+                        "settings": {
+                            "color": "#FFFFFF",
+                            "font-size": "22px",
+                            "font-family": "Montserrat",
+                            "opacity": "0.7",
+                            "text-align": "center"
+                        },
+                        "y": "90%",
+                        "duration": 3
                     }
                 ]
             },
             {
-                "comment": "Main",
-                "duration": 5,
-                "background-color": "#1A1A2E",
+                "comment": "Main with voice",
+                "duration": -1,
                 "elements": [
                     {
-                        "type": "text",
-                        "style": "003",
-                        "text": main_text,
-                        "duration": 5,
+                        "type": "video",
+                        "src": main_video,
+                        "duration": -2,
+                        "volume": 0
+                    },
+                    {
+                        "type": "voice",
+                        "text": voiceover_text,
+                        "connection": ELEVENLABS_CONN_ID,
+                        "voice": "Rachel",
+                        "duration": -1,
                         "settings": {
-                            "color": "#FFFFFF",
-                            "font-size": "60px",
+                            "stability": 0.5,
+                            "similarity_boost": 0.75
+                        }
+                    },
+                    {
+                        "type": "subtitles",
+                        "settings": {
+                            "font-family": "Montserrat",
+                            "font-size": "42px",
+                            "font-color": "#FFFFFF",
+                            "text-align": "center",
+                            "position": "center",
+                            "style": "classic"
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "style": "001",
+                        "text": sections.get("main_text", ""),
+                        "settings": {
+                            "color": "#FF6B35",
+                            "font-size": "52px",
                             "font-family": "Montserrat",
                             "font-weight": "700",
                             "text-align": "center"
-                        }
+                        },
+                        "y": "15%",
+                        "duration": -1
+                    },
+                    {
+                        "type": "text",
+                        "style": "001",
+                        "text": "Made with Annix Studio",
+                        "settings": {
+                            "color": "#FFFFFF",
+                            "font-size": "22px",
+                            "font-family": "Montserrat",
+                            "opacity": "0.7",
+                            "text-align": "center"
+                        },
+                        "y": "90%",
+                        "duration": -1
                     }
                 ]
             },
@@ -166,17 +300,51 @@ def generate_video(hook_text, main_text, cta_text, platform):
                 "background-color": "#0a0a0a",
                 "elements": [
                     {
+                        "type": "video",
+                        "src": cta_video,
+                        "duration": 3,
+                        "volume": 0,
+                        "settings": {"opacity": "0.4"}
+                    },
+                    {
                         "type": "text",
-                        "style": "001",
-                        "text": cta_text,
+                        "style": "005",
+                        "text": sections.get("cta_text", "Try Free Now"),
                         "duration": 3,
                         "settings": {
                             "color": "#FF6B35",
-                            "font-size": "64px",
+                            "font-size": "68px",
                             "font-family": "Montserrat",
                             "font-weight": "900",
                             "text-align": "center"
                         }
+                    },
+                    {
+                        "type": "text",
+                        "style": "001",
+                        "text": "Create yours free at Annix Studio",
+                        "settings": {
+                            "color": "#FFFFFF",
+                            "font-size": "28px",
+                            "font-family": "Montserrat",
+                            "text-align": "center"
+                        },
+                        "y": "75%",
+                        "duration": 3
+                    },
+                    {
+                        "type": "text",
+                        "style": "001",
+                        "text": "Made with Annix Studio",
+                        "settings": {
+                            "color": "#FFFFFF",
+                            "font-size": "22px",
+                            "font-family": "Montserrat",
+                            "opacity": "0.7",
+                            "text-align": "center"
+                        },
+                        "y": "90%",
+                        "duration": 3
                     }
                 ]
             }
@@ -195,8 +363,7 @@ def generate_video(hook_text, main_text, cta_text, platform):
     )
 
     if response.status_code == 200:
-        data = response.json()
-        return data.get("project")
+        return response.json().get("project")
     return None
 
 def check_video_status(project_id):
@@ -209,6 +376,7 @@ def check_video_status(project_id):
         return response.json()
     return None
 
+# UI
 st.set_page_config(page_title="Annix Studio", page_icon="🎬", layout="wide")
 
 st.markdown("""
@@ -236,27 +404,42 @@ st.markdown("""
         </div>
     </div>
     <h1 style='font-size:3em; font-weight:900; color:white; margin:0 0 10px 0;'>Grandma's on TikTok.</h1>
-    <p style='font-size:1.2em; color:#FF6B35; margin:0 0 6px 0;'>Turn any idea into a complete professional video.</p>
-    <p style='font-size:0.95em; color:#666; margin:0;'>Script. Voiceover. Video. Any language. Any platform. Free forever.</p>
+    <p style='font-size:1.2em; color:#FF6B35; margin:0 0 6px 0;'>The fastest way to create viral videos. Free forever.</p>
+    <p style='font-size:0.95em; color:#666; margin:0;'>Script. Voice. Real footage. Caption. Any language. Any platform.</p>
 </div>
 """, unsafe_allow_html=True)
 
+# TRENDING IDEAS
+st.markdown("### 🔥 Trending Ideas Today")
+trending = get_trending_ideas()
+cols = st.columns(5)
+selected_trend = None
+for i, trend in enumerate(trending):
+    with cols[i]:
+        if st.button(f"💡 {trend[:30]}...", key=f"trend_{i}", use_container_width=True):
+            selected_trend = trend
+
+st.markdown("---")
+
+# EXAMPLES
 ex1, ex2, ex3, ex4 = st.columns(4)
-with ex1: st.info("👵 Grandma's pho recipe on TikTok")
-with ex2: st.info("🍜 Restaurant daily specials")
-with ex3: st.info("🎓 Student history project")
-with ex4: st.info("💼 Freelancer portfolio showcase")
+with ex1: st.info("👵 Grandma's pho recipe")
+with ex2: st.info("🍜 Restaurant specials")
+with ex3: st.info("🎓 Student project")
+with ex4: st.info("💼 Freelancer portfolio")
 
 st.markdown("---")
 st.markdown("### Tell Annix Studio what you want")
 
 col1, col2 = st.columns(2)
 with col1:
+    default_idea = selected_trend if selected_trend else ""
     idea = st.text_area("What is your video about?",
+        value=default_idea,
         placeholder="e.g. My grandmother teaching her secret pho recipe...",
         height=120)
-    creator_info = st.text_input("About you (optional)",
-        placeholder="e.g. I am a 68 year old Vietnamese woman sharing recipes")
+    creator_info = st.text_input("About you (optional — makes it more personal)",
+        placeholder="e.g. I am a Vietnamese woman sharing family recipes")
     platform = st.selectbox("Platform", ["TikTok", "Instagram Reels", "YouTube Shorts", "YouTube", "LinkedIn", "Facebook"])
 
 with col2:
@@ -264,60 +447,54 @@ with col2:
     mode = "Quick" if "Quick" in mode else "Pro"
     tone = st.selectbox("Tone", ["Fun and energetic", "Warm and personal", "Professional", "Emotional and inspiring", "Educational", "Funny and entertaining"])
     language = st.selectbox("Language", ["English", "Vietnamese", "French", "Spanish", "Mandarin"])
-    duration = st.selectbox("Duration", ["15 seconds", "30 seconds", "60 seconds", "2 minutes", "5 minutes", "10 minutes"])
+    duration = st.selectbox("Duration", ["15 seconds", "30 seconds", "60 seconds", "2 minutes", "5 minutes"])
 
 st.markdown("---")
 col3, col4, col5 = st.columns(3)
-with col3: include_voiceover = st.checkbox("Generate voiceover", value=True)
-with col4: include_video = st.checkbox("Generate video", value=True)
-with col5: st.caption("Powered by JSON2Video")
+with col3: include_video = st.checkbox("Generate video with real footage", value=True)
+with col4: include_caption = st.checkbox("Generate viral caption", value=True)
+with col5: st.caption("🎥 Powered by Pexels + JSON2Video + ElevenLabs")
 
 st.markdown("---")
 
-if st.button("🎬 Create My Video", type="primary", use_container_width=True):
+if st.button("🎬 Create My Viral Video", type="primary", use_container_width=True):
     if idea:
-        with st.spinner("Writing your script..."):
+        with st.spinner("✍️ Writing your script..."):
             script = generate_script(idea, platform, tone, language, duration, mode, creator_info)
 
         st.markdown("## 📝 Your Video Script")
         st.markdown(script)
+
+        sections = extract_sections(script)
+        voiceover_text = sections.get("voiceover", "")
 
         col_a, col_b, col_c = st.columns(3)
         with col_a:
             st.download_button("📄 Download Script", data=script,
                 file_name="Annix_Script.txt", mime="text/plain", use_container_width=True)
 
-        sections = extract_sections(script)
-
-        if include_voiceover:
+        if include_caption:
             st.markdown("---")
-            st.markdown("## 🎙️ Voiceover")
-            with st.spinner("Recording voiceover..."):
-                voiceover_text = sections.get("voiceover", "")
-                st.markdown(f"*{voiceover_text}*")
-                audio = generate_voiceover(voiceover_text)
-                if audio:
-                    st.audio(audio, format="audio/mp3")
-                    with col_b:
-                        st.download_button("🎙️ Download Voiceover", data=audio,
-                            file_name="Annix_Voiceover.mp3", mime="audio/mpeg", use_container_width=True)
+            st.markdown("## 📢 Your Viral Caption")
+            with st.spinner("Generating viral caption..."):
+                caption = generate_caption(idea, platform)
+                st.text_area("Copy this caption:", value=caption, height=150)
 
         if include_video:
             st.markdown("---")
-            st.markdown("## 🎥 Your Video")
-            with st.spinner("Generating video... takes about 60 seconds..."):
-                project_id = generate_video(
-                    sections.get("hook_text", "Watch this"),
-                    sections.get("main_text", "Amazing content"),
-                    sections.get("cta_text", "Try free link in bio"),
-                    platform
-                )
+            st.markdown("## 🎥 Generating Your Video")
+            st.caption("Real footage + voiceover + subtitles + watermark — all in one")
+
+            with st.spinner("Fetching footage and generating video... takes 60-90 seconds..."):
+                project_id = generate_video_unified(sections, platform, voiceover_text)
 
                 if project_id:
                     progress = st.progress(0)
-                    for i in range(30):
-                        time.sleep(4)
-                        progress.progress((i + 1) / 30)
+                    status_text = st.empty()
+                    for i in range(36):
+                        time.sleep(5)
+                        progress.progress((i + 1) / 36)
+                        status_text.caption(f"Rendering... {(i+1)*5}s")
                         status = check_video_status(project_id)
                         if status:
                             movie = status.get("movie", {})
@@ -325,21 +502,33 @@ if st.button("🎬 Create My Video", type="primary", use_container_width=True):
                                 video_url = movie.get("url")
                                 if video_url:
                                     progress.progress(100)
-                                    st.success("Your video is ready!")
+                                    status_text.empty()
+                                    st.success("🎬 Your video is ready!")
                                     st.video(video_url)
-                                    with col_c:
+                                    with col_b:
                                         st.markdown(f"[⬇️ Download Video]({video_url})")
+                                    st.info("💡 Download and post on TikTok with your caption above. Tag @annix.studio!")
                                 break
                             elif movie.get("status") == "error":
-                                st.error("Video generation failed. Please try again.")
+                                st.error("Video generation failed. Try again or uncheck video generation.")
                                 break
                 else:
-                    st.error("Could not start video generation. Check your JSON2Video API key in secrets.")
+                    st.error("Could not start video. Check your API keys in Streamlit secrets.")
+
+        # REMIX
+        st.markdown("---")
+        if st.button("🔁 Remix This Video — Make It More Viral", use_container_width=True):
+            with st.spinner("Remixing for maximum virality..."):
+                remixed = remix_script(script)
+                st.markdown("## 🔁 Remixed Script")
+                st.markdown(remixed)
+                st.download_button("📄 Download Remixed Script", data=remixed,
+                    file_name="Annix_Remixed_Script.txt", mime="text/plain")
 
         st.markdown("---")
-        st.markdown("<div style='text-align:center; color:#444; font-size:0.85em;'>Annix Studio — Free forever. Part of the Annix Platform. Built by Khang Nguyen</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; color:#444; font-size:0.85em;'>Annix Studio — Free forever. Part of the Annix Platform. Built by Khang Nguyen 🌪️</div>", unsafe_allow_html=True)
     else:
-        st.warning("Tell Annix Studio what your video is about first.")
+        st.warning("Tell Annix Studio what your video is about — or click a trending idea above.")
 
 st.markdown("---")
-st.markdown("<div style='text-align:center; color:#333; font-size:0.8em;'>© 2026 Annix Platform. Free for everyone. Forever.</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#333; font-size:0.8em;'>© 2026 Annix Platform. Free for everyone. Forever. | @annix.studio</div>", unsafe_allow_html=True)
