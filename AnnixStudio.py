@@ -258,7 +258,7 @@ def generate_video_unified(sections, platform, voiceover_text):
                         "settings": {
                             "font-family": "Montserrat",
                             "font-size": "42px",
-                            "font-color": "#FFFFFF",
+                            "color": "#FFFFFF",
                             "text-align": "center",
                             "position": "center",
                             "style": "classic"
