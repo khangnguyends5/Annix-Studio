@@ -229,7 +229,7 @@ def generate_video_unified(sections, platform, voiceover_text):
                         "type": "voice",
                         "text": voiceover_text,
                         "connection": ELEVENLABS_CONN_ID,
-                        "voice": "Rachel",
+                        "voice": "21m00Tcm4TlvDq8ikWAM",
                         "duration": -1,
                         "settings": {
                             "stability": 0.5,
