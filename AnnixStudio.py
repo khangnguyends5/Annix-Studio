@@ -35,7 +35,7 @@ def get_pexels_video(query, orientation="portrait"):
         if response.get("videos"):
             for video in response["videos"]:
                 for vf in video["video_files"]:
-                    if vf.get("width", 0) >= 720:
+                    if 720 <= vf.get("width", 0) <= 1080:
                         return vf["link"]
         return None
     except:
@@ -322,22 +322,6 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         }
                     }
                 ]
-            }
-        ],
-        "elements": [
-            {
-                "type": "subtitles",
-                "settings": {
-                    "style": "classic",
-                    "font-family": "Montserrat",
-                    "font-size": 60,
-                    "position": "center-center",
-                    "word-color": "#FFFFFF",
-                    "line-color": "#FFFFFF",
-                    "outline-color": "#000000",
-                    "outline-width": 4,
-                    "max-words-per-line": 3
-                }
             }
         ]
     }
