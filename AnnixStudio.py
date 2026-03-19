@@ -29,13 +29,14 @@ def get_trending_ideas():
 
 def get_pexels_video(query, orientation="portrait"):
     headers = {"Authorization": PEXELS_API_KEY}
-    url = f"https://api.pexels.com/videos/search?query={query}&per_page=5&orientation={orientation}&size=medium"
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page=10&orientation={orientation}"
     try:
         response = requests.get(url, headers=headers, timeout=10).json()
         if response.get("videos"):
             for video in response["videos"]:
-                for vf in video["video_files"]:
-                    if 720 <= vf.get("width", 0) <= 1080:
+                for vf in sorted(video["video_files"], key=lambda x: x.get("width", 0)):
+                    w = vf.get("width", 0)
+                    if 720 <= w <= 1080 and vf.get("file_type") == "video/mp4":
                         return vf["link"]
         return None
     except:
@@ -50,13 +51,7 @@ def generate_script(idea, platform, tone, language, duration, mode, creator_info
         "Mandarin": "用普通话写"
     }.get(language, "Write in English")
 
-    depth = "Simple, fun, fast. First-time creator friendly." if mode == "Quick" else """Professional:
-- Exact camera angles
-- Text overlay suggestions
-- Music recommendation
-- 3 alternative hooks
-- Platform engagement tips"""
-
+    depth = "Simple, fun, fast." if mode == "Quick" else "Professional with detailed directions."
     creator_context = f"\nCreator: {creator_info}" if creator_info else ""
 
     prompt = f"""You are Annix Studio — world's best AI video director.
@@ -72,20 +67,17 @@ Create complete viral video script:
 
 Structure:
 🎣 HOOK (3 seconds)
-Visual: [what appears]
-Text on screen: [overlay max 6 words]
+Text on screen: [max 6 words]
 Voiceover: [exact words]
 Pexels search: [2-3 word query]
 
 🎬 MAIN CONTENT
-Visual: [what appears]
-Text on screen: [overlay max 8 words]
+Text on screen: [max 8 words]
 Voiceover: [exact words]
 Pexels search: [2-3 word query]
 
 📣 CALL TO ACTION
-Visual: [what appears]
-Text on screen: [overlay max 6 words]
+Text on screen: [max 6 words]
 Voiceover: [exact words]
 Pexels search: [2-3 word query]
 
@@ -94,21 +86,21 @@ Pexels search: [2-3 word query]
 
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        max_tokens=2500,
+        max_tokens=2000,
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content
 
 def extract_sections(script):
-    prompt = f"""Extract from this script. Return ONLY valid JSON no markdown:
+    prompt = f"""Extract from this script. Return ONLY valid JSON:
 {{
   "hook_text": "hook overlay max 6 words",
   "main_text": "main overlay max 8 words",
   "cta_text": "cta overlay max 6 words",
-  "hook_search": "2-3 word pexels search hook",
-  "main_search": "2-3 word pexels search main",
-  "cta_search": "2-3 word pexels search cta",
-  "voiceover": "all spoken words clean in order"
+  "hook_search": "2-3 word pexels search",
+  "main_search": "2-3 word pexels search",
+  "cta_search": "2-3 word pexels search",
+  "full_voiceover": "ALL spoken words from hook plus main plus cta combined clean"
 }}
 Script: {script}"""
 
@@ -125,16 +117,16 @@ Script: {script}"""
         return {
             "hook_text": "Watch This",
             "main_text": "This changes everything",
-            "cta_text": "Try free link in bio",
-            "hook_search": "cinematic abstract",
-            "main_search": "people success",
-            "cta_search": "phone technology",
-            "voiceover": "Check out Annix Studio for free."
+            "cta_text": "Try free now",
+            "hook_search": "cinematic people",
+            "main_search": "success motivation",
+            "cta_search": "smartphone social",
+            "full_voiceover": "Check out Annix Studio. Create your videos for free."
         }
 
 def generate_caption(topic, platform):
     prompt = f"""Create a viral {platform} caption for: {topic}
-Include strong hook, 2-3 value sentences, call to action, 8-10 hashtags including #AnnixStudio #FreeAI
+Strong hook, 2-3 value sentences, call to action, 8-10 hashtags including #AnnixStudio #FreeAI
 Return only the caption."""
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -144,48 +136,47 @@ Return only the caption."""
     return response.choices[0].message.content
 
 def remix_script(original_script):
-    prompt = f"""Rewrite this video script to be MORE viral, emotional, engaging, shareable.
-Same topic. Better hook. More compelling content. More urgent CTA.
-Original:
-{original_script}
-Return complete rewritten script in same format."""
+    prompt = f"""Rewrite this video script to be MORE viral, emotional, engaging.
+Same topic. Better hook. More urgent CTA.
+Original: {original_script}
+Return complete rewritten script."""
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        max_tokens=2500,
+        max_tokens=2000,
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content
 
-def generate_video_unified(sections, platform, voiceover_text, language):
-    if platform in ["TikTok", "Instagram Reels", "YouTube Shorts"]:
-        resolution = "portrait-hd"
-        orientation = "portrait"
-    else:
-        resolution = "full-hd"
-        orientation = "landscape"
-
+def generate_video(sections, platform, voiceover_text, language):
     azure_voices = {
-        "English": "en-US-JennyMultilingualNeural",
+        "English": "en-US-AmandaMultilingualNeural",
         "Vietnamese": "vi-VN-HoaiMyNeural",
         "French": "fr-FR-DeniseNeural",
         "Spanish": "es-ES-ElviraNeural",
         "Mandarin": "zh-CN-XiaoxiaoNeural"
     }
-    azure_voice = azure_voices.get(language, "en-US-JennyMultilingualNeural")
+    azure_voice = azure_voices.get(language, "en-US-AmandaMultilingualNeural")
 
-    fallback = "https://videos.pexels.com/video-files/4459031/4459031-hd_720_1280_30fps.mp4"
-    hook_video = get_pexels_video(sections.get("hook_search", "cinematic nature"), orientation) or fallback
-    main_video = get_pexels_video(sections.get("main_search", "people success"), orientation) or fallback
-    cta_video = get_pexels_video(sections.get("cta_search", "phone technology"), orientation) or fallback
+    if platform in ["TikTok", "Instagram Reels", "YouTube Shorts"]:
+        width, height = "1080", "1920"
+        orientation = "portrait"
+    else:
+        width, height = "1920", "1080"
+        orientation = "landscape"
+
+    fallback = "https://assets.json2video.com/assets/videos/sample-portrait.mp4"
+    hook_video = get_pexels_video(sections.get("hook_search", "people nature"), orientation) or fallback
+    main_video = get_pexels_video(sections.get("main_search", "success work"), orientation) or fallback
+    cta_video = get_pexels_video(sections.get("cta_search", "smartphone app"), orientation) or fallback
 
     movie = {
-        "comment": "Annix Studio — Free AI Video",
-        "resolution": resolution,
+        "width": width,
+        "height": height,
         "quality": "high",
+        "comment": "Annix Studio Video",
         "scenes": [
             {
                 "comment": "Hook",
-                "duration": 3,
                 "elements": [
                     {
                         "type": "video",
@@ -200,7 +191,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "duration": 3,
                         "settings": {
                             "color": "#FFFFFF",
-                            "font-size": "72px",
+                            "font-size": "80px",
                             "font-family": "Montserrat",
                             "font-weight": "900",
                             "text-align": "center"
@@ -214,7 +205,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "duration": 3,
                         "settings": {
                             "color": "#FFFFFF",
-                            "font-size": "22px",
+                            "font-size": "24px",
                             "font-family": "Montserrat",
                             "opacity": "0.7",
                             "text-align": "center"
@@ -223,8 +214,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                 ]
             },
             {
-                "comment": "Main with voice",
-                "duration": -1,
+                "comment": "Main with voice and subtitles",
                 "elements": [
                     {
                         "type": "video",
@@ -237,13 +227,31 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "model": "azure",
                         "text": voiceover_text,
                         "voice": azure_voice,
-                        "duration": -1
+                        "duration": -1,
+                        "extra-time": 0.5
+                    },
+                    {
+                        "type": "subtitles",
+                        "language": "auto",
+                        "model": "default",
+                        "settings": {
+                            "max-words-per-line": 3,
+                            "font-size": "72",
+                            "font-family": "Montserrat",
+                            "font-weight": "900",
+                            "style": "classic",
+                            "position": "center",
+                            "word-color": "#FFFFFF",
+                            "line-color": "#FFFFFF",
+                            "outline-color": "#000000",
+                            "outline-width": 6
+                        }
                     },
                     {
                         "type": "text",
                         "style": "001",
                         "text": sections.get("main_text", ""),
-                        "y": "15%",
+                        "y": "10%",
                         "duration": -1,
                         "settings": {
                             "color": "#FF6B35",
@@ -261,7 +269,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "duration": -1,
                         "settings": {
                             "color": "#FFFFFF",
-                            "font-size": "22px",
+                            "font-size": "24px",
                             "font-family": "Montserrat",
                             "opacity": "0.7",
                             "text-align": "center"
@@ -271,7 +279,6 @@ def generate_video_unified(sections, platform, voiceover_text, language):
             },
             {
                 "comment": "CTA",
-                "duration": 3,
                 "background-color": "#0a0a0a",
                 "elements": [
                     {
@@ -279,7 +286,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "src": cta_video,
                         "duration": 3,
                         "volume": 0,
-                        "settings": {"opacity": "0.4"}
+                        "settings": {"opacity": "0.3"}
                     },
                     {
                         "type": "text",
@@ -288,7 +295,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "duration": 3,
                         "settings": {
                             "color": "#FF6B35",
-                            "font-size": "68px",
+                            "font-size": "72px",
                             "font-family": "Montserrat",
                             "font-weight": "900",
                             "text-align": "center"
@@ -302,7 +309,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "duration": 3,
                         "settings": {
                             "color": "#FFFFFF",
-                            "font-size": "28px",
+                            "font-size": "30px",
                             "font-family": "Montserrat",
                             "text-align": "center"
                         }
@@ -315,7 +322,7 @@ def generate_video_unified(sections, platform, voiceover_text, language):
                         "duration": 3,
                         "settings": {
                             "color": "#FFFFFF",
-                            "font-size": "22px",
+                            "font-size": "24px",
                             "font-family": "Montserrat",
                             "opacity": "0.7",
                             "text-align": "center"
@@ -380,7 +387,7 @@ st.markdown("""
     </div>
     <h1 style='font-size:3em; font-weight:900; color:white; margin:0 0 10px 0;'>Grandma's on TikTok.</h1>
     <p style='font-size:1.2em; color:#FF6B35; margin:0 0 6px 0;'>The fastest way to create viral videos. Free forever.</p>
-    <p style='font-size:0.95em; color:#666; margin:0;'>Script. Voice. Real footage. Caption. Any language. Any platform.</p>
+    <p style='font-size:0.95em; color:#666; margin:0;'>Script. Voice. Real footage. Subtitles. Caption. Any language.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -438,7 +445,7 @@ if st.button("🎬 Create My Viral Video", type="primary", use_container_width=T
         st.markdown(script)
 
         sections = extract_sections(script)
-        voiceover_text = sections.get("voiceover", "")
+        voiceover_text = sections.get("full_voiceover", "")
 
         col_a, col_b, col_c = st.columns(3)
         with col_a:
@@ -455,17 +462,17 @@ if st.button("🎬 Create My Viral Video", type="primary", use_container_width=T
         if include_video:
             st.markdown("---")
             st.markdown("## 🎥 Generating Your Video")
-            st.caption("Real footage + Azure voice + subtitles + watermark")
+            st.caption("Real footage + Azure voice + auto subtitles + watermark")
 
-            with st.spinner("Fetching footage and generating video... 60-90 seconds..."):
-                project_id = generate_video_unified(sections, platform, voiceover_text, language)
+            with st.spinner("Fetching footage and generating video... 60-120 seconds..."):
+                project_id = generate_video(sections, platform, voiceover_text, language)
 
                 if project_id:
                     progress = st.progress(0)
                     status_text = st.empty()
-                    for i in range(36):
+                    for i in range(40):
                         time.sleep(5)
-                        progress.progress((i + 1) / 36)
+                        progress.progress((i + 1) / 40)
                         status_text.caption(f"Rendering... {(i+1)*5}s")
                         status = check_video_status(project_id)
                         if status:
@@ -479,25 +486,25 @@ if st.button("🎬 Create My Viral Video", type="primary", use_container_width=T
                                     st.video(video_url)
                                     with col_b:
                                         st.markdown(f"[⬇️ Download Video]({video_url})")
-                                    st.info("💡 Download and post on TikTok with your caption above. Tag @annix.studio!")
+                                    st.info("💡 Post on TikTok with your caption above. Tag @annix.studio!")
                                 break
                             elif movie.get("status") == "error":
-                                st.error("Video generation failed. Try again or uncheck video generation.")
+                                st.error("Video generation failed. Try again.")
                                 break
                 else:
-                    st.error("Could not start video. Check your API keys in Streamlit secrets.")
+                    st.error("Could not start video. Check your API keys.")
 
         st.markdown("---")
         if st.button("🔁 Remix — Make It More Viral", use_container_width=True):
-            with st.spinner("Remixing for maximum virality..."):
+            with st.spinner("Remixing..."):
                 remixed = remix_script(script)
                 st.markdown("## 🔁 Remixed Script")
                 st.markdown(remixed)
                 st.download_button("📄 Download Remixed Script", data=remixed,
-                    file_name="Annix_Remixed_Script.txt", mime="text/plain")
+                    file_name="Annix_Remixed.txt", mime="text/plain")
 
         st.markdown("---")
-        st.markdown("<div style='text-align:center; color:#444; font-size:0.85em;'>Annix Studio — Free forever. Part of the Annix Platform. Built by Khang Nguyen 🌪️</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; color:#444; font-size:0.85em;'>Annix Studio — Free forever. Built by Khang Nguyen 🌪️</div>", unsafe_allow_html=True)
     else:
         st.warning("Tell Annix Studio what your video is about — or click a trending idea above.")
 
